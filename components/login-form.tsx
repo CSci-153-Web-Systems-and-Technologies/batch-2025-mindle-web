@@ -23,26 +23,44 @@ export function LoginForm({
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
+    e.preventDefault();
+    const supabase = createClient();
+    setIsLoading(true);
+    setError(null);
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      router.refresh();
-      router.push("/protected/dashboard/student"); // Redirect to dashboard not home after successful login
-      /* router.refresh(); */
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    try {
+      // 1. Destructure 'data' to access the user object
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      router.refresh(); // Sync server/middleware with new session
+
+      // 2. Get the role from metadata
+      // The "?." checks ensure the app doesn't crash if metadata is missing
+      const role = data.user?.user_metadata?.role;
+
+      // 3. Redirect based on role
+      if (role === 'student') {
+        router.push("/protected/dashboard/student");
+      } else if (role === 'tutor') {
+        router.push("/protected/dashboard/tutor");
+      } else if (role === 'both') {
+      router.push("/protected/dashboard/both");
+      } else {
+        // Default fallback (e.g. for students or users with no role)
+        router.push("/protected/dashboard"); 
+      }
+
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className={cn("flex justify-center items-center w-full", className)} {...props}>

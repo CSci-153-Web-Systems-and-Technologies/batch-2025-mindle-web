@@ -12,7 +12,8 @@ import {
   Lock,
   MessageCircle,
   Video,
-  Loader2
+  Loader2,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,11 +74,11 @@ function StudyGroupViewContent() {
 
           // 2. Check if user is a member
           const { data: memberData } = await supabase
-            .from("study_group_members")
-            .select("id")
-            .eq("study_group_id", groupId)
-            .eq("user_id", user.id)
-            .maybeSingle(); // safe way to check existence without error
+            .from("group_members")
+            .select("group_id")
+            .eq("group_id", groupId)
+            .eq("member_id", user.id)
+            .maybeSingle();
             
           setIsMember(!!memberData);
         }
@@ -102,17 +103,21 @@ function StudyGroupViewContent() {
 
       // Insert into members table
       const { error } = await supabase
-        .from("study_group_members")
+        .from("group_members")
         .insert({
-          study_group_id: group.id,
-          user_id: user.id
+          group_id: group.id,
+          member_id: user.id,
+          role: 'member',
+          status: 'active'
         });
 
       if (error) throw error;
       
+      // Update members_count
+      await supabase.rpc('increment_group_members', { group_id: group.id });
+      
       // Update local state to reflect change immediately
       setIsMember(true);
-      // Optional: Increment member count visually
       setGroup(prev => prev ? ({ ...prev, members_count: prev.members_count + 1 }) : null);
       
       router.refresh();
@@ -179,9 +184,12 @@ function StudyGroupViewContent() {
         {/* Action Buttons */}
         <div className="flex gap-3">
           {isCreator ? (
-            <Button variant="outline" className="border-white/10 text-white hover:bg-white/10">
-              Manage Group
-            </Button>
+            <Link href={`/protected/dashboard/student/study-groups/${groupId}/manage`}>
+              <Button variant="outline" className="border-white/10 text-white hover:bg-white/10">
+                <Settings className="w-4 h-4 mr-2" />
+                Manage Group
+              </Button>
+            </Link>
           ) : isMember ? (
             <Button disabled className="bg-green-500/20 text-green-400 border border-green-500/20 cursor-default">
               Joined
@@ -263,7 +271,7 @@ function StudyGroupViewContent() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-400">Meeting Link</p>
-                    <a href={group.meeting_link} target="_blank" className="text-sm text-purple-400 hover:underline break-all mt-1 block">
+                    <a href={group.meeting_link} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-400 hover:underline break-all mt-1 block">
                       Join Meeting
                     </a>
                   </div>

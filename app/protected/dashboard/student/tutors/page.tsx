@@ -1,14 +1,21 @@
+// file: app/(protected)/dashboard/student/tutors/page.tsx
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { BookOpen, Star, MapPin, Calendar } from "lucide-react";
+import { GraduationCap, Search, Star, BookOpen, MapPin, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
-export default async function TutorsPage() {
+export default async function BrowseTutorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; subject?: string }>;
+}) {
   const supabase = await createClient();
+  const params = await searchParams;
   
   const {
     data: { user },
@@ -18,50 +25,32 @@ export default async function TutorsPage() {
     redirect("/auth/login");
   }
 
-  // Fetch tutors the student has worked with
-  const { data: sessions } = await supabase
-    .from('tutoring_sessions')
-    .select(`
-      tutor_id,
-      tutor:profiles!tutoring_sessions_tutor_id_fkey(
-        id,
-        full_name,
-        avatar_url,
-        bio,
-        subjects_of_expertise,
-        average_rating,
-        total_sessions,
-        location
-      )
-    `)
-    .eq('student_id', user.id)
-    .order('created_at', { ascending: false });
+  // Build query for tutors
+  let query = supabase
+    .from('profiles')
+    .select('*')
+    .in('role', ['tutor', 'both'])
+    .eq('is_available', true);
 
-  // Get unique tutors
-  const uniqueTutors = new Map();
-  sessions?.forEach((session: any) => {
-    if (session.tutor && !uniqueTutors.has(session.tutor.id)) {
-      uniqueTutors.set(session.tutor.id, session.tutor);
-    }
-  });
+  // Apply search filter if provided
+  if (params.search) {
+    query = query.or(`full_name.ilike.%${params.search}%,bio.ilike.%${params.search}%`);
+  }
 
-  const myTutors = Array.from(uniqueTutors.values());
+  // Apply subject filter if provided
+  if (params.subject) {
+    query = query.contains('subjects_of_expertise', [params.subject]);
+  }
 
-  // Fetch upcoming sessions
-  const { data: upcomingSessions } = await supabase
-    .from('tutoring_sessions')
-    .select(`
-      id,
-      subject,
-      scheduled_at,
-      duration_minutes,
-      status,
-      tutor:profiles!tutoring_sessions_tutor_id_fkey(id, full_name, avatar_url)
-    `)
-    .eq('student_id', user.id)
-    .gte('scheduled_at', new Date().toISOString())
-    .order('scheduled_at', { ascending: true })
-    .limit(5);
+  const { data: tutors, error } = await query.order('average_rating', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching tutors:", error);
+  }
+
+  // Get unique subjects for filter
+  const allSubjects = tutors?.flatMap(t => t.subjects_of_expertise || []) || [];
+  const uniqueSubjects = [...new Set(allSubjects)].sort();
 
   return (
     <div className="p-8">
@@ -69,154 +58,134 @@ export default async function TutorsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-green-400" />
-            My Tutors
+            <GraduationCap className="w-8 h-8 text-purple-400" />
+            Browse Tutors
           </h1>
           <p className="text-gray-400">
-            Manage your tutoring sessions and find new tutors
+            Find the perfect tutor to help you achieve your learning goals
           </p>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <Link href="/marketing/find-tutors">
-            <Button className="bg-green-500 hover:bg-green-600 text-white">
-              <BookOpen className="w-4 h-4 mr-2" />
-              Find New Tutors
-            </Button>
-          </Link>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column: My Tutors */}
-          <div className="lg:col-span-2">
-            <h2 className="text-xl font-bold text-white mb-4">Your Tutors</h2>
-
-            {myTutors.length > 0 ? (
-              <div className="grid gap-4">
-                {myTutors.map((tutor: any) => (
-                  <Link
-                    key={tutor.id}
-                    href={`/protected/dashboard/student/tutors/${tutor.id}`}
-                  >
-                    <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:border-green-500/50 transition">
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <Avatar className="w-16 h-16">
-                            <AvatarImage src={tutor.avatar_url || ""} />
-                            <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-500 text-lg">
-                              {tutor.full_name?.charAt(0) || "T"}
-                            </AvatarFallback>
-                          </Avatar>
-
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="text-lg font-bold text-white">
-                                  {tutor.full_name}
-                                </h3>
-                                {tutor.location && (
-                                  <p className="text-sm text-gray-400 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {tutor.location}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                <span className="text-white font-medium">
-                                  {tutor.average_rating?.toFixed(1) || "N/A"}
-                                </span>
-                              </div>
-                            </div>
-
-                            <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-                              {tutor.bio || "No bio available"}
-                            </p>
-
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {tutor.subjects_of_expertise?.slice(0, 3).map((subject: string) => (
-                                <Badge
-                                  key={subject}
-                                  variant="outline"
-                                  className="border-green-500/50 text-green-400"
-                                >
-                                  {subject}
-                                </Badge>
-                              ))}
-                            </div>
-
-                            <p className="text-xs text-gray-500">
-                              {tutor.total_sessions} total sessions
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
+        {/* Search & Filters */}
+        <Card className="bg-white/5 backdrop-blur-sm border-white/10 mb-8">
+          <CardContent className="p-6">
+            <form method="GET" className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
+                <Input
+                  name="search"
+                  placeholder="Search by name or expertise..."
+                  defaultValue={params.search}
+                  className="pl-10 bg-black/20 border-white/10 text-white"
+                />
               </div>
-            ) : (
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardContent className="p-12 text-center">
-                  <BookOpen className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg mb-2">No tutors yet</p>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Find expert tutors to help you achieve your learning goals
-                  </p>
-                  <Link href="/marketing/find-tutors">
-                    <Button className="bg-green-500 hover:bg-green-600 text-white">
-                      Browse Tutors
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+              <select
+                name="subject"
+                defaultValue={params.subject || ""}
+                className="bg-black/20 border border-white/10 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">All Subjects</option>
+                {uniqueSubjects.map((subject) => (
+                  <option key={subject} value={subject} className="bg-[#13132B]">
+                    {subject}
+                  </option>
+                ))}
+              </select>
+              <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+                <Search className="w-4 h-4 mr-2" />
+                Search
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-          {/* Right Column: Upcoming Sessions */}
-          <div>
-            <h2 className="text-xl font-bold text-white mb-4">Upcoming Sessions</h2>
-
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardContent className="p-0">
-                {upcomingSessions && upcomingSessions.length > 0 ? (
-                  <div className="divide-y divide-white/10">
-                    {upcomingSessions.map((session: any) => (
-                      <div key={session.id} className="p-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={session.tutor?.avatar_url || ""} />
-                            <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-500">
-                              {session.tutor?.full_name?.charAt(0) || "T"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-white text-sm mb-1">
-                              {session.subject}
-                            </p>
-                            <p className="text-xs text-gray-400 mb-2">
-                              with {session.tutor?.full_name}
-                            </p>
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(session.scheduled_at).toLocaleDateString()}
-                            </div>
-                          </div>
+        {/* Tutors Grid */}
+        {!tutors || tutors.length === 0 ? (
+          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+            <CardContent className="p-12 text-center">
+              <GraduationCap className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg mb-2">No tutors found</p>
+              <p className="text-gray-600 text-sm">
+                Try adjusting your search filters
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {tutors.map((tutor) => (
+              <Link
+                key={tutor.id}
+                href={`/protected/dashboard/student/tutors/${tutor.id}`}
+              >
+                <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:border-purple-500/50 transition h-full group">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="w-16 h-16">
+                        <AvatarImage src={tutor.avatar_url || ""} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-xl">
+                          {tutor.full_name?.charAt(0) || "T"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <CardTitle className="text-white text-lg group-hover:text-purple-300 transition">
+                          {tutor.full_name || "Anonymous Tutor"}
+                        </CardTitle>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                          <span className="text-white font-medium">
+                            {tutor.average_rating?.toFixed(1) || "N/A"}
+                          </span>
+                          <span className="text-gray-500 text-sm ml-1">
+                            ({tutor.total_sessions || 0} sessions)
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center">
-                    <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No upcoming sessions</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-gray-400 line-clamp-2 h-10">
+                      {tutor.bio || "No bio provided"}
+                    </p>
+
+                    {tutor.location && (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <MapPin className="w-4 h-4" />
+                        {tutor.location}
+                      </div>
+                    )}
+
+                    {tutor.subjects_of_expertise && tutor.subjects_of_expertise.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {tutor.subjects_of_expertise.slice(0, 3).map((subject: string) => (
+                          <Badge
+                            key={subject}
+                            variant="outline"
+                            className="border-purple-500/50 text-purple-400 text-xs"
+                          >
+                            {subject}
+                          </Badge>
+                        ))}
+                        {tutor.subjects_of_expertise.length > 3 && (
+                          <Badge
+                            variant="outline"
+                            className="border-gray-500/50 text-gray-400 text-xs"
+                          >
+                            +{tutor.subjects_of_expertise.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                      View Profile
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

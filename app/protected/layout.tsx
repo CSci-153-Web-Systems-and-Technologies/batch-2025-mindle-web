@@ -1,24 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-
-export default async function ProtectedLayout({
+// file: app/(protected)/layout.tsx
+// Simplified layout - authentication handled by middleware
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return redirect("/sign-in");
-  }
-
-  return (
-    <div className="w-full flex flex-col min-h-screen">
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }
