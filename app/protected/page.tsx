@@ -28,7 +28,7 @@ export default async function DashboardRootPage() {
   const role = user.user_metadata?.role?.toLowerCase();
 
   switch (role) {
-    case "learner":
+    case "student":
       redirect("/protected/dashboard/student");
       
     case "tutor":

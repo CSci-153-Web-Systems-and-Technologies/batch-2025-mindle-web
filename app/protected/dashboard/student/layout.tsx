@@ -1,51 +1,24 @@
 // file: app/(protected)/dashboard/student/layout.tsx
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { 
   MessageSquare, 
   Users, 
-  BookOpen, 
+  GraduationCap,
   TrendingUp, 
   Bell, 
   Settings, 
-  User 
+  User,
+  Star
 } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
+import { createClient } from "@/lib/supabase/server";
 
-export default async function StudentLayout({
+export default function StudentLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  /* // Verify user has student or both role
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile || (profile.role !== 'student' && profile.role !== 'both')) {
-    redirect("/protected/dashboard");
-  } */
-
-  // Count unread notifications
-  const { count: unreadNotifications } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('is_read', false);
-
   return (
     <div className="min-h-screen bg-[#0a0a16] flex">
       {/* Sidebar */}
@@ -74,26 +47,36 @@ export default async function StudentLayout({
             Messages
           </Link>
 
-          <Link 
-            href="/protected/dashboard/student/notifications" 
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition"
-          >
-            <Bell className="w-5 h-5" />
-            Notifications
-            {(unreadNotifications ?? 0) > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                {unreadNotifications}
-              </span>
-            )}
-          </Link>
+          <Suspense fallback={
+            <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400">
+              <Bell className="w-5 h-5" />
+              Notifications
+            </div>
+          }>
+            <NotificationLink />
+          </Suspense>
 
-          <Link 
-            href="/protected/dashboard/student/tutors" 
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition"
-          >
-            <BookOpen className="w-5 h-5" />
-            Tutors
-          </Link>
+          {/* Tutors Section with Sub-navigation */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-3 px-4 py-3 text-gray-400">
+              <GraduationCap className="w-5 h-5" />
+              <span className="font-medium">Tutors</span>
+            </div>
+            <div className="ml-8 space-y-1">
+              <Link 
+                href="/protected/dashboard/student/tutors" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition text-sm"
+              >
+                Browse Tutors
+              </Link>
+              <Link 
+                href="/protected/dashboard/student/tutors/my-tutors" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition text-sm"
+              >
+                My Tutors
+              </Link>
+            </div>
+          </div>
 
           <Link 
             href="/protected/dashboard/student/study-groups" 
@@ -101,6 +84,14 @@ export default async function StudentLayout({
           >
             <Users className="w-5 h-5" />
             Study Groups
+          </Link>
+
+          <Link 
+            href="/protected/dashboard/student/reviews" 
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition"
+          >
+            <Star className="w-5 h-5" />
+            Reviews
           </Link>
 
           <Link 
@@ -140,5 +131,37 @@ export default async function StudentLayout({
         {children}
       </main>
     </div>
+  );
+}
+
+// Separate async component for notification count
+async function NotificationLink() {
+  const supabase = await createClient();
+  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+  
+  const { count: unreadNotifications } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false);
+
+  return (
+    <Link 
+      href="/protected/dashboard/student/notifications" 
+      className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition"
+    >
+      <Bell className="w-5 h-5" />
+      Notifications
+      {(unreadNotifications ?? 0) > 0 && (
+        <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+          {unreadNotifications}
+        </span>
+      )}
+    </Link>
   );
 }
