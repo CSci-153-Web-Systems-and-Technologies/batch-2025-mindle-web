@@ -1,8 +1,7 @@
-// file: app/(protected)/dashboard/tutor/page.tsx
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, Users, Calendar, Star, Bell, TrendingUp } from "lucide-react";
+import { MessageSquare, Users, Calendar, Star, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -25,16 +24,15 @@ export default async function TutorDashboardPage() {
     .eq('id', user.id)
     .single();
 
-  // Fetch students count (unique students from sessions)
-  const { data: sessions } = await supabase
-    .from('tutoring_sessions')
-    .select('student_id')
-    .eq('tutor_id', user.id);
+  // 1. Fetch Total Connected Students (Active Students)
+  // We now check the requests table for 'accepted' status
+  const { count: studentsCount } = await supabase
+    .from('tutor_student_requests')
+    .select('*', { count: 'exact', head: true })
+    .eq('tutor_id', user.id)
+    .eq('status', 'accepted');
 
-  const uniqueStudents = new Set(sessions?.map(s => s.student_id) || []);
-  const studentsCount = uniqueStudents.size;
-
-  // Fetch upcoming sessions
+  // 2. Fetch upcoming sessions (Remains the same)
   const { data: upcomingSessions } = await supabase
     .from('tutoring_sessions')
     .select(`
@@ -50,7 +48,7 @@ export default async function TutorDashboardPage() {
     .order('scheduled_at', { ascending: true })
     .limit(5);
 
-  // Fetch recent messages
+  // 3. Fetch recent messages (Remains the same)
   const { data: messages } = await supabase
     .from('messages')
     .select(`
@@ -65,20 +63,28 @@ export default async function TutorDashboardPage() {
     .order('created_at', { ascending: false })
     .limit(5);
 
-  // Fetch pending student requests
-  const { data: pendingRequests } = await supabase
-    .from('tutoring_sessions')
-    .select(`
-      id,
-      subject,
-      description,
-      created_at,
-      student:profiles!tutoring_sessions_student_id_fkey(full_name, avatar_url)
-    `)
+  // 4. Fetch Pending Requests (FIXED: Uses new table)
+  const { data: rawRequests } = await supabase
+    .from('tutor_student_requests')
+    .select('*')
     .eq('tutor_id', user.id)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(3);
+
+  // Manually fetch profiles for these requests to avoid FK issues
+  const studentIds = rawRequests?.map(r => r.student_id) || [];
+  const { data: requestProfiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .in('id', studentIds);
+
+  const profileMap = new Map(requestProfiles?.map(p => [p.id, p]));
+
+  const pendingRequests = rawRequests?.map(r => ({
+    ...r,
+    student: profileMap.get(r.student_id)
+  }));
 
   // Count unread notifications
   const { count: unreadNotifications } = await supabase
@@ -118,7 +124,7 @@ export default async function TutorDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white">
-                {studentsCount}
+                {studentsCount || 0}
               </div>
               <p className="text-xs text-gray-500 mt-1">Active learners</p>
             </CardContent>
@@ -214,9 +220,11 @@ export default async function TutorDashboardPage() {
                                 Pending
                               </Badge>
                             </div>
-                            <p className="text-sm text-gray-400">
-                              {request.subject}
-                            </p>
+                            {request.message && (
+                                <p className="text-sm text-gray-400 line-clamp-1 italic">
+                                "{request.message}"
+                                </p>
+                            )}
                             <p className="text-xs text-gray-500 mt-1">
                               {new Date(request.created_at).toLocaleDateString()}
                             </p>
