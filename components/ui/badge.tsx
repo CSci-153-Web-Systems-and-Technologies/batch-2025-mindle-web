@@ -15,6 +15,15 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground",
+        neon: 
+          "relative bg-transparent text-white rounded-full font-bold transition-shadow duration-300 " +
+          "hover:shadow-[0_0_20px_rgba(59,130,246,0.6)] " + 
+          // This pseudo-element creates the gradient border while keeping the center clear
+          "before:absolute before:inset-0 before:rounded-full before:p-[2px] " +
+          "before:bg-gradient-to-r before:from-blue-500 before:to-pink-500 " +
+          "before:content-[''] before:-z-10 " +
+          "before:[mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] " +
+          "before:[mask-composite:exclude]",
       },
     },
     defaultVariants: {

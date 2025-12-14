@@ -1,109 +1,195 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Mindle 🚀
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+**Mindle** is a community-driven peer-to-peer learning platform designed to connect students with tutors and study groups. By removing payment barriers, Mindle fosters a universe of knowledge where users can share expertise, schedule free tutoring sessions, and collaborate in study groups.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
 
-## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+## 🚀 Features
 
-## Demo
+👤 **User Roles**
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- **Students**: Discover tutors, join study groups, manage upcoming sessions, and track learning progress.
+- **Tutors**: Accept session requests, manage availability, build a reputation through reviews, and track student statistics.
 
-## Deploy to Vercel
+🔍 **Discovery & Collaboration**
 
-Vercel deployment will guide you through creating a Supabase account and project.
+- **Find Tutors**: Browse profiles by subject expertise and availability.
+- **Study Groups**: Join subject-specific groups (limited to 50 members) to collaborate with peers.
+- **Reviews**: Transparent rating system (1-5 stars) with written feedback to build trust.
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+⚡ **Dashboard Management**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+- **Student Dashboard**: View "Upcoming Sessions," "Recent Messages," and "Active Study Groups" at a glance.
+- **Tutor Dashboard**: Manage "Pending Requests," view "Total Students" stats, and read reviews.
+- **Notifications**: Real-time alerts for session requests, confirmations, and messages.
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+🛠️ **Tech Stack**
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+- **Framework**: Next.js 15+ (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Backend & Auth**: Supabase (PostgreSQL, Auth, Realtime)
+- **Icons**: Lucide React
+- **UI Components**: Shadcn UI
 
-## Clone and run locally
+## 🏁 Getting Started
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+Follow these steps to run the project locally.
 
-2. Create a Next.js app using the Supabase Starter template npx command
+### 1. Prerequisites
+Make sure you have **Node.js** (v18 or higher) installed and a **Supabase** project set up.
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+### 2. Clone the Repository
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+```bash
+git clone [https://github.com/yourusername/mindle.git](https://github.com/yourusername/mindle.git)
+cd mindle
+````
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+### 3\. Install Dependencies
 
-3. Use `cd` to change into the app's directory
+```bash
+npm install
+# or
+yarn install
+```
 
-   ```bash
-   cd with-supabase-app
-   ```
+### 4\. Configure Environment Variables
 
-4. Rename `.env.example` to `.env.local` and update the following:
+Create a `.env.local` file in the root directory and add your Supabase credentials:
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+### 5\. Database Setup (Supabase)
 
-5. You can now run the Next.js local development server:
+Run the following SQL in your Supabase SQL Editor to set up the required tables.
 
-   ```bash
-   npm run dev
-   ```
+```sql
+-- 1. Profiles Table (Extends Auth)
+CREATE TABLE public.profiles (
+  id uuid NOT NULL REFERENCES auth.users(id),
+  username text UNIQUE,
+  full_name text,
+  avatar_url text,
+  role text NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'tutor', 'both', 'admin')),
+  bio text,
+  is_available boolean DEFAULT true,
+  subjects_of_expertise text[],
+  total_sessions integer DEFAULT 0,
+  average_rating numeric DEFAULT 0.0 CHECK (average_rating BETWEEN 0 AND 5),
+  location text,
+  created_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (id)
+);
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+-- 2. Tutoring Sessions
+CREATE TABLE public.tutoring_sessions (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  tutor_id uuid NOT NULL REFERENCES public.profiles(id),
+  student_id uuid NOT NULL REFERENCES public.profiles(id),
+  subject text NOT NULL,
+  description text,
+  scheduled_at timestamp with time zone NOT NULL,
+  duration_minutes integer NOT NULL DEFAULT 60,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled', 'no_show')),
+  meeting_link text,
+  created_at timestamp with time zone DEFAULT now()
+);
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+-- 3. Study Groups
+CREATE TABLE public.study_groups (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  creator_id uuid NOT NULL REFERENCES public.profiles(id),
+  name text NOT NULL,
+  description text,
+  subject text NOT NULL,
+  max_members integer DEFAULT 50,
+  members_count integer DEFAULT 0,
+  is_public boolean DEFAULT true,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now()
+);
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+-- 4. Group Members
+CREATE TABLE public.group_members (
+  group_id bigint NOT NULL REFERENCES public.study_groups(id),
+  member_id uuid NOT NULL REFERENCES public.profiles(id),
+  role text NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'active', 'banned')),
+  joined_at timestamp with time zone DEFAULT now(),
+  PRIMARY KEY (group_id, member_id)
+);
 
-## Feedback and issues
+-- 5. Messages
+CREATE TABLE public.messages (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  sender_id uuid NOT NULL REFERENCES public.profiles(id),
+  recipient_id uuid REFERENCES public.profiles(id),
+  group_id bigint REFERENCES public.study_groups(id),
+  content text NOT NULL,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now()
+);
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+-- 6. Reviews
+CREATE TABLE public.reviews (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  reviewer_id uuid NOT NULL REFERENCES public.profiles(id),
+  reviewee_id uuid NOT NULL REFERENCES public.profiles(id),
+  session_id bigint REFERENCES public.tutoring_sessions(id),
+  rating integer NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment text,
+  created_at timestamp with time zone DEFAULT now()
+);
 
-## More Supabase examples
+-- 7. Notifications
+CREATE TABLE public.notifications (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES public.profiles(id),
+  type text NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now()
+);
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+-- Enable Row Level Security (Recommended)
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tutoring_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+```
+
+### 6\. Run the Development Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000) with your browser to see the result.
+
+## 📂 Project Structure
+
+```text
+mindle/
+├── app/
+│   ├── (protected)/        # Authenticated routes
+│   │   └── dashboard/
+│   │       ├── student/    # Student views (Sessions, Groups)
+│   │       └── tutor/      # Tutor views (Requests, Stats)
+│   ├── auth/               # Login / Signup pages
+│   ├── marketing/          # Public pages (Find Tutors, About)
+│   └── page.tsx            # Landing Page
+├── components/             # Reusable UI Components
+│   ├── ui/                 # Shadcn UI primitives
+│   └── ...
+├── lib/
+│   └── supabase/           # Supabase Client & Server utilities
+└── public/                 # Static assets (images, logos)
+```
+
+## 🤝 Contributing
+
+Contributions are welcome\! Please fork this repository and submit a pull request for any features, bug fixes, or enhancements.
