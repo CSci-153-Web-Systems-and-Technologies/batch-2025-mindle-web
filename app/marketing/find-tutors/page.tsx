@@ -1,25 +1,15 @@
+import { Suspense } from "react";
 import Background from "@/components/bg";
 import Footer from "@/components/footer";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TutorSearch from "@/components/tutor-search";
 
-interface Tutor {
-  id: string;
-  username: string;
-  full_name: string;
-  avatar_url: string | null;
-  bio: string | null;
-  subjects_of_expertise: string[];
-  average_rating: number;
-  total_sessions: number;
-  location: string | null;
-}
-
-export default async function FindTutorsPage() {
+// --- 1. The Async Component that fetches data ---
+// This component performs the fetch and will be "streamed" in.
+async function TutorResults() {
   const supabase = await createClient();
-  
-  // Fetch initial tutors (first 12)
+
   const { data: tutors, error } = await supabase
     .from('profiles')
     .select('id, username, full_name, avatar_url, bio, subjects_of_expertise, average_rating, total_sessions, location')
@@ -28,10 +18,31 @@ export default async function FindTutorsPage() {
     .order('average_rating', { ascending: false })
     .limit(12);
 
+  if (error) {
+    console.error("Error fetching tutors:", error);
+    // You could return an error message UI here if you want
+  }
+
+  return <TutorSearch initialTutors={tutors || []} />;
+}
+
+// --- 2. The Loading Fallback ---
+// This is what users see while the database is connecting
+function TutorsLoading() {
+  return (
+    <div className="w-full text-center py-20">
+      <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+      <p className="mt-4 text-gray-400">Finding expert tutors...</p>
+    </div>
+  );
+}
+
+// --- 3. The Main Page Shell ---
+export default function FindTutorsPage() {
   return (
     <main className="min-h-screen flex flex-col">
       <Background />
-      
+
       {/* Navigation */}
       <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16 px-8 bg-black/20 backdrop-blur-sm">
         <div className="w-full max-w-7xl flex justify-between items-center text-sm">
@@ -49,7 +60,7 @@ export default async function FindTutorsPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="px-4 py-12">
+      <section className="px-4 py-12 flex-grow">
         <div className="max-w-7xl mx-auto text-center mb-12">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
             Find Your Perfect <span className="text-blue-400">Tutor</span>
@@ -59,8 +70,12 @@ export default async function FindTutorsPage() {
           </p>
         </div>
 
-        {/* Search Component */}
-        <TutorSearch initialTutors={tutors || []} />
+        {/* Search Component Wrapper
+            We wrap the async component in Suspense so the page shell loads first.
+        */}
+        <Suspense fallback={<TutorsLoading />}>
+          <TutorResults />
+        </Suspense>
       </section>
 
       <Footer />

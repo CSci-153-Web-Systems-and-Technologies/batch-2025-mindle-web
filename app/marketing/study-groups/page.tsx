@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Background from "@/components/bg";
 import Footer from "@/components/footer";
 import Link from "next/link";
@@ -16,9 +17,10 @@ interface StudyGroup {
   created_at: string;
 }
 
-export default async function StudyGroupsPage() {
+// --- 1. Async Component for Data Fetching ---
+async function StudyGroupsList() {
   const supabase = await createClient();
-  
+
   const { data: groups, error } = await supabase
     .from('study_groups')
     .select('*')
@@ -27,6 +29,43 @@ export default async function StudyGroupsPage() {
     .order('created_at', { ascending: false })
     .limit(12);
 
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-400">Error loading study groups. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (!groups || groups.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-400 text-lg">No study groups available yet. Be the first to create one!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {groups.map((group) => (
+        <GroupCard key={group.id} group={group} />
+      ))}
+    </div>
+  );
+}
+
+// --- 2. Loading State ---
+function GroupsLoading() {
+  return (
+    <div className="w-full text-center py-20">
+      <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+      <p className="mt-4 text-gray-400">Loading active groups...</p>
+    </div>
+  );
+}
+
+// --- 3. Main Page Shell ---
+export default function StudyGroupsPage() {
   return (
     <main className="min-h-screen flex flex-col">
       <Background />
@@ -48,7 +87,7 @@ export default async function StudyGroupsPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="px-4 py-12">
+      <section className="px-4 py-12 flex-grow">
         <div className="max-w-7xl mx-auto text-center mb-12">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
             Join a <span className="text-purple-400">Study Group</span>
@@ -61,23 +100,11 @@ export default async function StudyGroupsPage() {
           </Link>
         </div>
 
-        {/* Groups Grid */}
+        {/* Groups Grid with Suspense */}
         <div className="max-w-7xl mx-auto">
-          {error ? (
-            <div className="text-center py-12">
-              <p className="text-red-400">Error loading study groups. Please try again later.</p>
-            </div>
-          ) : groups && groups.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {groups.map((group) => (
-                <GroupCard key={group.id} group={group} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-400 text-lg">No study groups available yet. Be the first to create one!</p>
-            </div>
-          )}
+          <Suspense fallback={<GroupsLoading />}>
+            <StudyGroupsList />
+          </Suspense>
         </div>
       </section>
 
