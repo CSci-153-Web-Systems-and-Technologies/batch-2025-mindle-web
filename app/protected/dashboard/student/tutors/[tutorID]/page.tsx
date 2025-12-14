@@ -26,7 +26,6 @@ import RequestStudentButton from "./request-student-button";
 import { SubjectManager } from "@/components/subject-manager"; 
 import { CreateSessionDialog } from "@/components/create-session-dialog";
 import { format } from "date-fns";
-import { DisconnectTutorDialog } from "@/components/disconnect-tutor-dialog";
 
 interface PageProps {
   params: Promise<{ tutorID: string }>;
