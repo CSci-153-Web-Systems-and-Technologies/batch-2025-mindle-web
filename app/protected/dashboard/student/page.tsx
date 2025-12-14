@@ -217,7 +217,7 @@ export default async function StudentDashboardPage() {
                     <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                     <p className="text-gray-500 mb-2">No upcoming sessions</p>
                     <Link
-                      href="/marketing/find-tutors"
+                      href="/protected/dashboard/student/tutors"
                       className="text-sm text-blue-400 hover:text-blue-300"
                     >
                       Find a tutor
@@ -345,7 +345,7 @@ export default async function StudentDashboardPage() {
                     You haven't joined any study groups yet
                   </p>
                   <Link
-                    href="/marketing/study-groups"
+                    href="/protected/dashboard/student/study-groups"
                     className="text-blue-400 hover:text-blue-300 text-sm"
                   >
                     Browse Study Groups

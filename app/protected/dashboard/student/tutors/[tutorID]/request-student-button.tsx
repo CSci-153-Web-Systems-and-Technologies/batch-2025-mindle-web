@@ -1,10 +1,10 @@
 // file: app/(protected)/dashboard/student/tutors/[tutorID]/request-student-button.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Loader2, Check } from "lucide-react";
+import { UserPlus, Loader2, Check, XCircle, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -22,18 +22,47 @@ interface RequestStudentButtonProps {
   studentId: string;
 }
 
+type RequestStatus = 'none' | 'pending' | 'accepted' | 'rejected';
+
 export default function RequestStudentButton({ tutorId, studentId }: RequestStudentButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
+  const [status, setStatus] = useState<RequestStatus>('none');
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [message, setMessage] = useState("");
+  
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    checkRequestStatus();
+  }, [tutorId, studentId]);
+
+  const checkRequestStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tutor_student_requests')
+        .select('status')
+        .eq('student_id', studentId)
+        .eq('tutor_id', tutorId)
+        .maybeSingle();
+
+      if (data) {
+        setStatus(data.status as RequestStatus);
+      } else {
+        setStatus('none');
+      }
+    } catch (error) {
+      console.error("Error checking status:", error);
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
 
   const handleSendRequest = async () => {
     setIsSubmitting(true);
     try {
-      // Create a notification for the tutor
+      // 1. Send Notification to Tutor
       const { error: notifError } = await supabase
         .from('notifications')
         .insert({
@@ -46,26 +75,24 @@ export default function RequestStudentButton({ tutorId, studentId }: RequestStud
 
       if (notifError) throw notifError;
 
-      // Create a pending session request
-      const { error: sessionError } = await supabase
-        .from('tutoring_sessions')
-        .insert({
-          tutor_id: tutorId,
+      // 2. Upsert the request record (Handle re-requesting logic)
+      // We use upsert so if a 'rejected' row exists, we update it back to 'pending'
+      const { error: requestError } = await supabase
+        .from('tutor_student_requests')
+        .upsert({
           student_id: studentId,
-          subject: 'General', // Can be customized
-          description: message,
-          scheduled_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now as placeholder
-          duration_minutes: 60,
+          tutor_id: tutorId,
           status: 'pending',
-        });
+          message: message,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'student_id, tutor_id' });
 
-      if (sessionError) throw sessionError;
+      if (requestError) throw requestError;
 
-      setRequestSent(true);
-      setTimeout(() => {
-        setIsOpen(false);
-        router.refresh();
-      }, 2000);
+      setStatus('pending');
+      setIsOpen(false);
+      router.refresh();
+      
     } catch (error: any) {
       console.error("Error sending request:", error);
       alert(error.message || "Failed to send request");
@@ -74,85 +101,105 @@ export default function RequestStudentButton({ tutorId, studentId }: RequestStud
     }
   };
 
+  if (isLoadingStatus) {
+    return (
+      <Button disabled variant="outline" className="border-white/10">
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        Loading...
+      </Button>
+    );
+  }
+
+  // If already accepted, maybe hide button or show "Book Session"
+  if (status === 'accepted') {
+    return (
+      <Button className="bg-green-600 hover:bg-green-700 text-white cursor-default">
+        <Check className="w-4 h-4 mr-2" />
+        Connected
+      </Button>
+    );
+  }
+
+  // If pending, show pending state (disabled)
+  if (status === 'pending') {
+    return (
+      <Button disabled className="bg-yellow-500/20 text-yellow-500 border border-yellow-500/50">
+        <Clock className="w-4 h-4 mr-2" />
+        Request Pending
+      </Button>
+    );
+  }
+
+  // Render "Request" button if status is 'none' OR 'rejected'
+  // If rejected, we might want to change the text slightly, or keep it standard
   return (
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        className="bg-blue-600 hover:bg-blue-700 text-white"
+        className={status === 'rejected' 
+          ? "bg-purple-600 hover:bg-purple-700 text-white" // Standard color for retry
+          : "bg-blue-600 hover:bg-blue-700 text-white"
+        }
       >
         <UserPlus className="w-4 h-4 mr-2" />
-        Request to be Student
+        {status === 'rejected' ? "Request Again" : "Request to be Student"}
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="bg-[#1E1E3F] border-white/10">
           <DialogHeader>
             <DialogTitle className="text-white">
-              Request to Learn with Tutor
+              {status === 'rejected' ? "Try Again?" : "Request to Learn with Tutor"}
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Send a request to this tutor. They will review and approve your request.
+              {status === 'rejected' 
+                ? "Your previous request was declined, but you can try sending a new message." 
+                : "Send a request to this tutor. They will review and approve your request."}
             </DialogDescription>
           </DialogHeader>
 
-          {!requestSent ? (
-            <>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="message" className="text-white">
-                    Introduce yourself (Optional)
-                  </Label>
-                  <Textarea
-                    id="message"
-                    placeholder="Tell the tutor about your learning goals and what subjects you'd like help with..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="bg-black/20 border-white/10 text-white min-h-[120px]"
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsOpen(false)}
-                  disabled={isSubmitting}
-                  className="bg-white/5 border-white/10 text-white hover:bg-white/10"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSendRequest}
-                  disabled={isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Send Request
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <div className="py-8 text-center">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Check className="w-8 h-8 text-green-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Request Sent!
-              </h3>
-              <p className="text-gray-400 text-sm">
-                The tutor will review your request and get back to you soon.
-              </p>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="message" className="text-white">
+                Message to Tutor
+              </Label>
+              <Textarea
+                id="message"
+                placeholder="Tell the tutor about your learning goals..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="bg-black/20 border-white/10 text-white min-h-[120px]"
+              />
             </div>
-          )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              disabled={isSubmitting}
+              className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendRequest}
+              disabled={isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Send Request
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
