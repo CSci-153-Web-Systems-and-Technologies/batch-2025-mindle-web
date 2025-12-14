@@ -49,9 +49,11 @@ export default function Home() {
                 <p className="text-xl text-gray-300">
                   Connect with tutors and study groups across the universe of knowledge. Explore subjects, share expertise, and launch your learning journey into orbit.
                 </p>
-                <button className="ml-1 px-9 py-3 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition">
-                  Get Started
-                </button>
+                <Link href={"/auth/sign-up"}>
+                  <button className="ml-1 px-9 py-3 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-600 transition">
+                    Get Started
+                  </button>
+                </Link>
               </div>
 
               {/* Right Side: Image placeholder */}

@@ -4,8 +4,9 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Heart, Loader2 } from "lucide-react";
+import { Loader2, Clock, UserMinus } from "lucide-react"; 
 import { useRouter } from "next/navigation";
+import RequestStudentButton from "./request-student-button"; 
 
 interface TutorActionsProps {
   tutorId: string;
@@ -13,54 +14,56 @@ interface TutorActionsProps {
 }
 
 export default function TutorActions({ tutorId, userId }: TutorActionsProps) {
-  const [isSaved, setIsSaved] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    checkSavedStatus();
+    checkStatus();
   }, [tutorId, userId]);
 
-  const checkSavedStatus = async () => {
+  const checkStatus = async () => {
     try {
-      // Check if this tutor is in the user's "my tutors" list
-      // We'll use tutoring_sessions to check if there's any relationship
+      // Fetch the STATUS specifically
       const { data, error } = await supabase
         .from('tutoring_sessions')
-        .select('id')
+        .select('status')
         .eq('student_id', userId)
         .eq('tutor_id', tutorId)
-        .limit(1);
+        .maybeSingle();
 
-      if (!error && data && data.length > 0) {
-        setIsSaved(true);
+      if (!error && data) {
+        setStatus(data.status);
+      } else {
+        setStatus(null);
       }
     } catch (error) {
-      console.error("Error checking saved status:", error);
+      console.error("Error checking status:", error);
     } finally {
       setIsCheckingStatus(false);
     }
   };
 
-  const handleSaveToggle = async () => {
+  const handleDisconnect = async () => {
+    if (!confirm("Are you sure you want to stop learning with this tutor?")) return;
+    
     setIsLoading(true);
     try {
-      if (isSaved) {
-        // In a real app, you'd have a "saved_tutors" table
-        // For now, we'll just toggle the UI state
-        setIsSaved(false);
-        alert("Tutor removed from your list");
-      } else {
-        // Add to saved tutors
-        setIsSaved(true);
-        alert("Tutor added to My Tutors!");
-      }
-      router.refresh();
+        const { error } = await supabase
+          .from('tutoring_sessions')
+          .delete()
+          .eq('student_id', userId)
+          .eq('tutor_id', tutorId);
+
+        if (error) throw error;
+        
+        setStatus(null);
+        router.refresh();
     } catch (error: any) {
-      console.error("Error toggling saved status:", error);
-      alert(error.message || "Failed to update");
+      console.error("Error disconnecting:", error);
+      alert(error.message || "Failed to disconnect");
     } finally {
       setIsLoading(false);
     }
@@ -75,23 +78,35 @@ export default function TutorActions({ tutorId, userId }: TutorActionsProps) {
     );
   }
 
-  return (
-    <Button
-      variant="outline"
-      onClick={handleSaveToggle}
-      disabled={isLoading}
-      className={
-        isSaved
-          ? "border-red-500/50 text-red-400 hover:bg-red-500/10"
-          : "border-white/20 text-white hover:bg-white/10"
-      }
-    >
-      {isLoading ? (
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-      ) : (
-        <Heart className={`w-4 h-4 mr-2 ${isSaved ? "fill-red-400" : ""}`} />
-      )}
-      {isSaved ? "Remove from My Tutors" : "Add to My Tutors"}
-    </Button>
-  );
+  // ONLY show "Request Pending" if status is strictly 'pending'
+  if (status === 'pending') {
+    return (
+      <Button variant="outline" disabled className="border-yellow-500/50 text-yellow-400 bg-yellow-500/10 cursor-not-allowed">
+        <Clock className="w-4 h-4 mr-2" />
+        Request Pending
+      </Button>
+    );
+  }
+
+  // ONLY show "Stop Learning" if status is strictly 'accepted'
+  if (status === 'accepted') {
+    return (
+      <Button
+        variant="outline"
+        onClick={handleDisconnect}
+        disabled={isLoading}
+        className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <UserMinus className="w-4 h-4 mr-2" />
+        )}
+        Stop Learning
+      </Button>
+    );
+  }
+
+  // Otherwise, show the Request Button
+  return <RequestStudentButton tutorId={tutorId} studentId={userId} />;
 }

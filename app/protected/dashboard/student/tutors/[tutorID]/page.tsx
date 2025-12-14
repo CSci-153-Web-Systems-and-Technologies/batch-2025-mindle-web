@@ -1,4 +1,3 @@
-// file: app/(protected)/dashboard/student/tutors/[tutorID]/page.tsx
 import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import { 
@@ -8,12 +7,14 @@ import {
   Clock, 
   Award, 
   MessageSquare,
-  Heart,
   ArrowLeft,
   BookOpen,
-  UserPlus,
   CheckCircle2,
-  ClipboardList
+  ClipboardList,
+  Loader2,
+  Video,
+  Circle,
+  AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,20 +22,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import TutorActions from "./tutor-actions";
 import RequestStudentButton from "./request-student-button";
+import { SubjectManager } from "@/components/subject-manager"; 
+import { CreateSessionDialog } from "@/components/create-session-dialog";
+import { format } from "date-fns";
+import { DisconnectTutorDialog } from "@/components/disconnect-tutor-dialog";
 
 interface PageProps {
   params: Promise<{ tutorID: string }>;
-}
-
-interface Assignment {
-  id: number;
-  title: string;
-  description: string;
-  due_date: string;
-  status: "pending" | "completed";
-  type: "homework" | "quiz";
 }
 
 export default async function TutorDetailPage({ params }: PageProps) {
@@ -49,7 +44,7 @@ export default async function TutorDetailPage({ params }: PageProps) {
     redirect("/auth/login");
   }
 
-  // Fetch tutor profile
+  // 1. Fetch tutor profile
   const { data: tutor, error } = await supabase
     .from('profiles')
     .select('*')
@@ -60,7 +55,7 @@ export default async function TutorDetailPage({ params }: PageProps) {
     return notFound();
   }
 
-  // Fetch reviews for this tutor
+  // 2. Fetch reviews
   const { data: reviews } = await supabase
     .from('reviews')
     .select(`
@@ -72,40 +67,32 @@ export default async function TutorDetailPage({ params }: PageProps) {
     .order('created_at', { ascending: false })
     .limit(5);
 
-  // Check if student has active relationship with tutor
-  const { data: existingSessions } = await supabase
+  // 3. Fetch ALL Sessions (History & Status)
+  const { data: sessionHistory } = await supabase
     .from('tutoring_sessions')
-    .select('id, status')
+    .select('*')
     .eq('student_id', user.id)
     .eq('tutor_id', tutorID)
-    .limit(1);
+    .order('scheduled_at', { ascending: false });
 
-  const hasRelationship = existingSessions && existingSessions.length > 0;
+  // 4. ✅ Fetch TASKS directly (Server-side)
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('student_id', user.id)
+    .eq('tutor_id', tutorID)
+    .order('due_date', { ascending: true }); // Show earliest due date first
 
-  // If has relationship, fetch assignments/tasks
-  let assignments: Assignment[] = [];
-  if (hasRelationship) {
-    // For now, we'll create a placeholder structure
-    // make an assignments table
-    assignments = [
-      {
-        id: 1,
-        title: "Complete Chapter 5 Exercises",
-        description: "Work through problems 1-20 in the calculus textbook",
-        due_date: "2025-01-15",
-        status: "pending",
-        type: "homework"
-      },
-      {
-        id: 2,
-        title: "Weekly Quiz - Derivatives",
-        description: "Quiz covering derivative rules and applications",
-        due_date: "2025-01-18",
-        status: "completed",
-        type: "quiz"
-      }
-    ];
-  }
+  // Determine relationship status
+  const latestSession = sessionHistory && sessionHistory.length > 0 ? sessionHistory[0] : null;
+  const status = latestSession?.status; 
+
+  const hasActiveRelationship = sessionHistory?.some(s => 
+    s.status === 'confirmed' || s.status === 'completed' || s.status === 'accepted'
+  );
+
+  const isPending = status === 'pending';
+  const canRequest = !sessionHistory || sessionHistory.length === 0 || status === 'rejected';
 
   return (
     <div className="p-8">
@@ -122,6 +109,7 @@ export default async function TutorDetailPage({ params }: PageProps) {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Tutor Profile */}
           <div className="lg:col-span-2 space-y-6">
+            
             {/* Profile Header */}
             <Card className="bg-white/5 backdrop-blur-sm border-white/10">
               <CardContent className="p-6">
@@ -158,16 +146,24 @@ export default async function TutorDetailPage({ params }: PageProps) {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      {!hasRelationship && (
+                      {canRequest && (
                         <RequestStudentButton tutorId={tutorID} studentId={user.id} />
                       )}
-                      {hasRelationship && (
-                        <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
+
+                      {isPending && (
+                        <Button disabled variant="outline" className="border-yellow-500/50 text-yellow-500 bg-yellow-500/10">
+                          <Clock className="w-4 h-4 mr-2" />
+                          Request Pending
+                        </Button>
+                      )}
+
+                      {hasActiveRelationship && (
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/50 py-2 px-4">
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
                           Your Tutor
                         </Badge>
                       )}
-                      <TutorActions tutorId={tutorID} userId={user.id} />
+
                       <Link href={`/protected/dashboard/student/messages/${tutorID}`}>
                         <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
                           <MessageSquare className="w-4 h-4 mr-2" />
@@ -192,7 +188,7 @@ export default async function TutorDetailPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            {/* Subjects */}
+            {/* Subjects Section */}
             {tutor.subjects_of_expertise && tutor.subjects_of_expertise.length > 0 && (
               <Card className="bg-white/5 backdrop-blur-sm border-white/10">
                 <CardHeader>
@@ -202,23 +198,59 @@ export default async function TutorDetailPage({ params }: PageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {tutor.subjects_of_expertise.map((subject: string) => (
-                      <Badge
-                        key={subject}
-                        variant="outline"
-                        className="border-purple-500/50 text-purple-400 px-4 py-2"
-                      >
-                        {subject}
-                      </Badge>
-                    ))}
-                  </div>
+                  <SubjectManager
+                    initialSubjects={tutor.subjects_of_expertise}
+                    readOnly={true} 
+                  />
                 </CardContent>
               </Card>
             )}
 
-            {/* Assignments/Tasks - Only visible if student has relationship */}
-            {hasRelationship && (
+            {/* Sessions History */}
+            {hasActiveRelationship && (
+              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Video className="w-5 h-5 text-orange-400" />
+                    Sessions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {sessionHistory && sessionHistory.length > 0 ? (
+                    sessionHistory.map((session) => (
+                      <div key={session.id} className="flex items-center justify-between p-4 rounded-lg bg-black/20 border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 rounded-full bg-blue-500/10 text-blue-400">
+                            <Calendar className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-white font-medium">{session.subject || "General Session"}</p>
+                            <p className="text-sm text-gray-400">
+                              {format(new Date(session.scheduled_at), "PPP p")}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            session.status === 'confirmed' || session.status === 'accepted' ? 'text-green-400 border-green-500/30' :
+                            session.status === 'completed' ? 'text-blue-400 border-blue-500/30' :
+                            'text-yellow-400 border-yellow-500/30'
+                          }
+                        >
+                          {session.status}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No sessions scheduled yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ✅ ASSIGNMENTS & TASKS (Direct Render) */}
+            {hasActiveRelationship && (
               <Card className="bg-white/5 backdrop-blur-sm border-white/10">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
@@ -227,50 +259,45 @@ export default async function TutorDetailPage({ params }: PageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {assignments.length > 0 ? (
-                    <div className="space-y-3">
-                      {assignments.map((assignment: any) => (
-                        <div
-                          key={assignment.id}
-                          className="p-4 rounded-lg bg-black/20 border border-white/10 hover:border-purple-500/30 transition"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h4 className="text-white font-semibold mb-1">
-                                {assignment.title}
-                              </h4>
-                              <p className="text-sm text-gray-400">
-                                {assignment.description}
-                              </p>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className={
-                                assignment.status === 'completed'
-                                  ? "border-green-500/50 text-green-400"
-                                  : "border-orange-500/50 text-orange-400"
-                              }
-                            >
-                              {assignment.status}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Due: {new Date(assignment.due_date).toLocaleDateString()}
-                            </div>
-                            <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
-                              {assignment.type}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-8">
-                      No assignments yet
-                    </p>
-                  )}
+                   {tasks && tasks.length > 0 ? (
+                     <div className="space-y-3">
+                       {tasks.map((task) => (
+                         <div key={task.id} className="p-4 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 transition-colors">
+                           <div className="flex items-start justify-between gap-4">
+                             <div className="flex items-start gap-3">
+                               {task.is_completed ? (
+                                 <CheckCircle2 className="w-5 h-5 text-green-500 mt-1" />
+                               ) : (
+                                 <Circle className="w-5 h-5 text-gray-500 mt-1" />
+                               )}
+                               <div>
+                                 <h4 className={`font-medium ${task.is_completed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                   {task.title}
+                                 </h4>
+                                 {task.description && (
+                                   <p className="text-sm text-gray-400 mt-1">{task.description}</p>
+                                 )}
+                                 {task.due_date && (
+                                   <div className="flex items-center gap-2 mt-2 text-xs text-blue-400">
+                                     <Clock className="w-3 h-3" />
+                                     Due: {format(new Date(task.due_date), "MMM d, yyyy")}
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+                             <Badge variant="outline" className={task.is_completed ? "border-green-500/30 text-green-500" : "border-gray-500/30 text-gray-400"}>
+                               {task.is_completed ? 'Completed' : 'Pending'}
+                             </Badge>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
+                     <div className="text-center py-8 text-gray-500">
+                       <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                       <p>No tasks assigned yet</p>
+                     </div>
+                   )}
                 </CardContent>
               </Card>
             )}
@@ -378,19 +405,17 @@ export default async function TutorDetailPage({ params }: PageProps) {
 
                 <Separator className="bg-white/10" />
 
-                {hasRelationship && (
+                {/* Enable Booking via Dialog */}
+                {hasActiveRelationship && (
                   <div className="space-y-2">
-                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Book Session
-                    </Button>
+                    <CreateSessionDialog tutorId={tutorID} studentId={user.id} />
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Relationship Status Card */}
-            {hasRelationship && (
+            {hasActiveRelationship && (
               <Card className="bg-green-500/5 border-green-500/20">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
@@ -406,6 +431,24 @@ export default async function TutorDetailPage({ params }: PageProps) {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {isPending && (
+               <Card className="bg-yellow-500/5 border-yellow-500/20">
+               <CardContent className="p-4">
+                 <div className="flex items-start gap-3">
+                   <Clock className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                   <div>
+                     <p className="text-yellow-400 font-medium text-sm mb-1">
+                       Request Sent
+                     </p>
+                     <p className="text-yellow-500/60 text-xs">
+                       Waiting for tutor approval. You will be notified once they accept.
+                     </p>
+                   </div>
+                 </div>
+               </CardContent>
+             </Card>
             )}
           </div>
         </div>

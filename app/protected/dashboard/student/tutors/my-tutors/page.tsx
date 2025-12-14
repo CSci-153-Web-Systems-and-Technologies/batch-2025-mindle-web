@@ -27,6 +27,8 @@ export default async function MyTutorsPage() {
       tutor:profiles!tutoring_sessions_tutor_id_fkey(*)
     `)
     .eq('student_id', user.id)
+    // ✅ Check for 'confirmed' (active) or 'completed' (past) sessions
+    .in('status', ['confirmed', 'completed']) 
     .order('created_at', { ascending: false });
 
   // Get unique tutors
